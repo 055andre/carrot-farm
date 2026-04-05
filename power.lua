@@ -12,83 +12,67 @@ local function getRoot()
     return getCharacter():WaitForChild("HumanoidRootPart")
 end
 
--- ⚙️ FIELD SETTINGS (ANPASSEN!)
-local fieldMin = Vector3.new(-50, 0, -50)
-local fieldMax = Vector3.new(50, 0, 50)
+-- 🥕 Nächste Karotte finden
+local function getNearestCarrot()
+    local closest = nil
+    local shortest = math.huge
 
-local gridSize = 6
-
-local heatmap = {}
-
--- 🧠 Grid erstellen
-for x = fieldMin.X, fieldMax.X, gridSize do
-    for z = fieldMin.Z, fieldMax.Z, gridSize do
-        table.insert(heatmap, {
-            pos = Vector3.new(x, fieldMin.Y, z),
-            value = 0
-        })
-    end
-end
-
--- 🥕 Heatmap updaten
-local function updateHeatmap()
-    for _, cell in pairs(heatmap) do
-        cell.value = 0
-    end
-
-    -- 🔥 HIER GEÄNDERT
     for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Part") and obj.Name == "Easter Carrots Costume" then
+        if obj.Name == "Easter Carrots Costume" then
             
-            local closestCell = nil
-            local shortest = math.huge
+            local position = nil
 
-            for _, cell in pairs(heatmap) do
-                local dist = (obj.Position - cell.pos).Magnitude
+            -- Für Parts
+            if obj:IsA("BasePart") then
+                position = obj.Position
+
+            -- Für Models (sehr wichtig!)
+            elseif obj:IsA("Model") then
+                position = obj:GetPivot().Position
+            end
+
+            if position then
+                local dist = (getRoot().Position - position).Magnitude
+
                 if dist < shortest then
                     shortest = dist
-                    closestCell = cell
+                    closest = position
                 end
             end
-
-            if closestCell then
-                closestCell.value += 1
-            end
-        end
-    end
-end
-
--- 🎯 beste Zone finden
-local function getBestCell()
-    local best = nil
-    local highest = 0
-
-    for _, cell in pairs(heatmap) do
-        if cell.value > highest then
-            highest = cell.value
-            best = cell
         end
     end
 
-    return best
+    return closest
 end
 
--- 🚶 normales Laufen
+-- 🚶 Bewegung (mit Timeout, damit nichts hängen bleibt)
 local function walkTo(pos)
     local humanoid = getHumanoid()
     humanoid:MoveTo(pos)
 
-    humanoid.MoveToFinished:Wait()
+    local finished = false
+
+    local conn
+    conn = humanoid.MoveToFinished:Connect(function()
+        finished = true
+        conn:Disconnect()
+    end)
+
+    local start = tick()
+    while not finished and tick() - start < 3 do
+        task.wait()
+    end
 end
 
 -- 🔁 MAIN LOOP
 while true do
-    updateHeatmap()
-
-    local target = getBestCell()
+    local target = getNearestCarrot()
 
     if target then
-        walkTo(target.pos)
+        walkTo(target)
+    else
+        warn("Keine Karotte gefunden!")
+        task.wait(1)
     end
 
     task.wait(0.1)
