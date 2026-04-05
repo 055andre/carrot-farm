@@ -16,7 +16,7 @@ end
 local fieldMin = Vector3.new(-50, 0, -50)
 local fieldMax = Vector3.new(50, 0, 50)
 
-local gridSize = 6 -- etwas größer für weniger Rechenlast
+local gridSize = 6
 
 local heatmap = {}
 
@@ -36,13 +36,15 @@ local function updateHeatmap()
         cell.value = 0
     end
 
-    for _, carrot in pairs(workspace.Carrots:GetChildren()) do
-        if carrot:IsA("Part") then
+    -- 🔥 HIER GEÄNDERT
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Part") and obj.Name == "Easter Carrots Costume" then
+            
             local closestCell = nil
             local shortest = math.huge
 
             for _, cell in pairs(heatmap) do
-                local dist = (carrot.Position - cell.pos).Magnitude
+                local dist = (obj.Position - cell.pos).Magnitude
                 if dist < shortest then
                     shortest = dist
                     closestCell = cell
