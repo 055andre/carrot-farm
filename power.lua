@@ -1,79 +1,84 @@
 local player = game.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local running = false
+local positions = {}
+local currentTween = nil
 
 local function getCharacter()
     return player.Character or player.CharacterAdded:Wait()
-end
-
-local function getHumanoid()
-    return getCharacter():WaitForChild("Humanoid")
 end
 
 local function getRoot()
     return getCharacter():WaitForChild("HumanoidRootPart")
 end
 
--- 🥕 Nächste Karotte finden
-local function getNearestCarrot()
-    local closest = nil
-    local shortest = math.huge
+-- 📍 Position speichern (F1)
+local function savePosition()
+    local root = getRoot()
+    table.insert(positions, root.Position)
+    print("Position gespeichert:", #positions)
+end
 
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj.Name == "Easter Carrots Costume" then
-            
-            local position = nil
+-- 🚀 Tween zu Position
+local function tweenTo(pos)
+    local root = getRoot()
 
-            -- Für Parts
-            if obj:IsA("BasePart") then
-                position = obj.Position
+    if currentTween then
+        currentTween:Cancel()
+    end
 
-            -- Für Models (sehr wichtig!)
-            elseif obj:IsA("Model") then
-                position = obj:GetPivot().Position
-            end
+    local distance = (root.Position - pos).Magnitude
+    local speed = 60
+    local time = math.clamp(distance / speed, 0.1, 3)
 
-            if position then
-                local dist = (getRoot().Position - position).Magnitude
+    local tweenInfo = TweenInfo.new(time, Enum.EasingStyle.Linear)
 
-                if dist < shortest then
-                    shortest = dist
-                    closest = position
-                end
+    currentTween = TweenService:Create(root, tweenInfo, {
+        CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+    })
+
+    currentTween:Play()
+    currentTween.Completed:Wait()
+end
+
+-- 🔁 Route Loop
+local function routeLoop()
+    while running do
+        if #positions == 0 then
+            warn("Keine Positionen gespeichert!")
+            task.wait(1)
+            continue
+        end
+
+        for i, pos in ipairs(positions) do
+            if not running then break end
+            print("Gehe zu Punkt:", i)
+            tweenTo(pos)
+            task.wait(0.2)
+        end
+    end
+end
+
+-- 🎮 Controls
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+
+    if input.KeyCode == Enum.KeyCode.F1 then
+        savePosition()
+    end
+
+    if input.KeyCode == Enum.KeyCode.F8 then
+        running = not running
+        print("Route Farm:", running and "AN" or "AUS")
+
+        if running then
+            task.spawn(routeLoop)
+        else
+            if currentTween then
+                currentTween:Cancel()
             end
         end
     end
-
-    return closest
-end
-
--- 🚶 Bewegung (mit Timeout, damit nichts hängen bleibt)
-local function walkTo(pos)
-    local humanoid = getHumanoid()
-    humanoid:MoveTo(pos)
-
-    local finished = false
-
-    local conn
-    conn = humanoid.MoveToFinished:Connect(function()
-        finished = true
-        conn:Disconnect()
-    end)
-
-    local start = tick()
-    while not finished and tick() - start < 3 do
-        task.wait()
-    end
-end
-
--- 🔁 MAIN LOOP
-while true do
-    local target = getNearestCarrot()
-
-    if target then
-        walkTo(target)
-    else
-        warn("Keine Karotte gefunden!")
-        task.wait(1)
-    end
-
-    task.wait(0.1)
-end
+end)
